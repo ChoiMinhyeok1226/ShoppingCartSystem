@@ -1,11 +1,17 @@
-create database shop;
-use shop;
-create table customer(customer_id int(6) auto_increment, customer_name varchar(50), customer_password varchar(50), email varchar(100), 
-address varchar(150), primary key (customer_id))auto_increment=100;
+create database shoppingcartsystem;
+use shoppingcartsystem;
 
-insert into customer(customer_name,customer_password,email,address) values('Jhon Mark','123456','jhon@cc.co','123 Street NY');
-insert into customer(customer_name,customer_password,email,address) values('Rick Lin','a12354','rick@cc.co','3 Street IN');
-insert into customer(customer_name,customer_password,email,address) values('Molly Merk','b123456','mm@cc.co','566 Street NJ');
-insert into customer(customer_name,customer_password,email,address) values('Len Jonson','c123456','len@cc.co','123 Street DC');
-insert into customer(customer_name,customer_password,email,address) values('Miller Job','d123456','mjob@cc.co','563 Street AZ');
-insert into customer(customer_name,customer_password,email,address) values('Anny Ken','e123456','ken@cc.co','127 Street SD');
+
+CREATE TABLE User (
+    id INT AUTO_INCREMENT PRIMARY KEY,   -- 사용자 고유 ID (자동 증가)
+    name VARCHAR(100) NOT NULL,          -- 사용자 이름
+    email VARCHAR(100) NOT NULL UNIQUE,  -- 이메일 (고유값)
+    password VARCHAR(255) NOT NULL,      -- 비밀번호
+    role ENUM('admin', 'customer') NOT NULL, -- 사용자 역할 (admin 또는 customer)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP -- 생성 날짜
+);
+
+INSERT INTO User (name, email, password, role) 
+VALUES 
+('test_customer', 'john@example.com', 'password123', 'customer'),
+('Admin', 'admin@example.com', 'admin123', 'admin');
