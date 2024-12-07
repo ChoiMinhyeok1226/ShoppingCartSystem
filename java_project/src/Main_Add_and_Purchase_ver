@@ -1,3 +1,4 @@
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
@@ -116,12 +117,12 @@ class OrderDAO {
                 model.addRow(new Object[]{orderId, orderDate, totalPrice});
             }
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-public void loadOrderDetailList(int orderId, DefaultTableModel model) {
+    public void loadOrderDetailList(int orderId, DefaultTableModel model) {
         String query = "SELECT product_id, product_name, quantity, price FROM OrderDetails WHERE order_id = ?";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query)) {
@@ -138,7 +139,7 @@ public void loadOrderDetailList(int orderId, DefaultTableModel model) {
                 model.addRow(new Object[]{productId, productName, quantity, price});
             }
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -221,7 +222,7 @@ class UserDAO {
 
             return rs.next() ? rs.getInt("id") : 0;//userid 반환
 
-        } catch (SQLException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             return 0;
         }
