@@ -44,3 +44,23 @@ VALUES
     ('Desk Chair', 'Furniture', 'Ergonomic desk chair', 15, 120.00),
     ('Notebook', 'Stationery', 'A5 size ruled notebook', 100, 2.50),
     ('Pen', 'Stationery', 'Black ballpoint pen', 200, 0.50);
+    
+    CREATE TABLE Orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    customer_id INT,
+    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    total_price DECIMAL(10, 2),
+    status VARCHAR(20),
+    FOREIGN KEY (customer_id) REFERENCES User(id)
+);
+
+CREATE TABLE OrderDetails (
+    order_detail_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_id INT,
+    product_name VARCHAR(100) NOT NULL,
+    product_id INT,
+    quantity INT,
+    price DECIMAL(10, 2),
+    FOREIGN KEY (order_id) REFERENCES Orders(order_id),
+    FOREIGN KEY (product_id) REFERENCES Inventory(product_id)
+);
