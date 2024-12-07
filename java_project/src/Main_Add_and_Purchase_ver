@@ -8,12 +8,13 @@ import java.util.*;
 import java.util.List;
 
 class OrderDetail {
-    private int productId;   // 상품 ID
-    private int quantity;    // 주문 수량
-    private double price;    // 상품 단가
+    private int productId;
+    private int quantity;
+    private double price;
     private String productName;
+
     // 생성자
-    public OrderDetail(int productId, String productName,int quantity, double price) {
+    public OrderDetail(int productId, String productName, int quantity, double price) {
         this.productId = productId;
         this.quantity = quantity;
         this.price = price;
@@ -21,38 +22,19 @@ class OrderDetail {
     }
 
     // Getter 및 Setter
-    public int getProductId() {
-        return productId;
-    }
-
-    public void setProductId(int productId) {
-        this.productId = productId;
-    }
-
-    public int getQuantity() {
-        return quantity;
-    }
-
-    public void setQuantity(int quantity) {
-        this.quantity = quantity;
-    }
-
-    public double getPrice() {
-        return price;
-    }
-
-    public void setPrice(double price) {
-        this.price = price;
-    }
-    public String getProductName() {
-        return productName;
-    }
+    public int getProductId() { return productId; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public double getPrice() { return price; }
+    public void setPrice(double price) { this.price = price; }
+    public String getProductName() { return productName; }
 }
 
 class Order {
-    private int customerId;        // 고객 ID
-    private double totalPrice;     // 주문 총액
-    private List<OrderDetail> orderDetails; // 주문 상세 정보 리스트
+    private int customerId;
+    private double totalPrice;
+    private List<OrderDetail> orderDetails;
 
     // 생성자
     public Order(int customerId, double totalPrice, List<OrderDetail> orderDetails) {
@@ -62,30 +44,12 @@ class Order {
     }
 
     // Getter 및 Setter
-    public int getCustomerId() {
-        return customerId;
-    }
-
-    public void setCustomerId(int customerId) {
-        this.customerId = customerId;
-    }
-
-    public double getTotalPrice() {
-        return totalPrice;
-    }
-
-    public void setTotalPrice(double totalPrice) {
-        this.totalPrice = totalPrice;
-    }
-
-    public List<OrderDetail> getOrderDetails() {
-        return orderDetails;
-    }
-
-    public void setOrderDetails(List<OrderDetail> orderDetails) {
-        this.orderDetails = orderDetails;
-    }
-
+    public int getCustomerId() { return customerId; }
+    public void setCustomerId(int customerId) { this.customerId = customerId; }
+    public double getTotalPrice() { return totalPrice; }
+    public void setTotalPrice(double totalPrice) { this.totalPrice = totalPrice; }
+    public List<OrderDetail> getOrderDetails() { return orderDetails; }
+    public void setOrderDetails(List<OrderDetail> orderDetails) { this.orderDetails = orderDetails; }
 }
 
 
@@ -138,58 +102,44 @@ class OrderDAO {
 
     public void loadOrderList(int customerId, DefaultTableModel model) {
         String query = "SELECT order_id, order_date, total_price FROM Orders WHERE customer_id = ?";
-
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query)) {
 
-            pstmt.setInt(1, customerId);  // customerId를 쿼리 파라미터로 설정
-
-            // 쿼리 실행
+            pstmt.setInt(1, customerId);
             ResultSet rs = pstmt.executeQuery();
 
-            // ResultSet에서 데이터 읽어서 테이블 모델에 추가
             while (rs.next()) {
                 int orderId = rs.getInt("order_id");
                 Timestamp orderDate = rs.getTimestamp("order_date");
                 double totalPrice = rs.getDouble("total_price");
 
-                // 주문 정보를 DefaultTableModel에 추가
-                model.addRow(new Object[] { orderId, orderDate, totalPrice });
+                model.addRow(new Object[]{orderId, orderDate, totalPrice});
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();  // 예외 처리
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 
-    public void loadOrderDetailList(int orderId, DefaultTableModel model) {
+public void loadOrderDetailList(int orderId, DefaultTableModel model) {
         String query = "SELECT product_id, product_name, quantity, price FROM OrderDetails WHERE order_id = ?";
-
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query)) {
 
-            pstmt.setInt(1, orderId);  // customerId를 쿼리 파라미터로 설정
-
-            // 쿼리 실행
+            pstmt.setInt(1, orderId);
             ResultSet rs = pstmt.executeQuery();
 
-            // ResultSet에서 데이터 읽어서 테이블 모델에 추가
             while (rs.next()) {
                 int productId = rs.getInt("product_id");
                 String productName = rs.getString("product_name");
                 int quantity = rs.getInt("quantity");
-                double Price = rs.getDouble("price");
+                double price = rs.getDouble("price");
 
-                // 주문 정보를 DefaultTableModel에 추가
-                model.addRow(new Object[] { productId, productName,quantity, Price });
+                model.addRow(new Object[]{productId, productName, quantity, price});
             }
 
         } catch (SQLException e) {
-            e.printStackTrace();  // 예외 처리
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
     }
 }
@@ -260,7 +210,8 @@ class UserDAO {
         }
     }
 
-    int getCustomerID(String email) {
+    // 고객 ID 조회
+    public int getCustomerID(String email) {
         String query = "SELECT id FROM User WHERE email = ?";
         try (Connection conn = DatabaseUtil.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query)) {
@@ -268,18 +219,13 @@ class UserDAO {
             pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
 
-            if (rs.next()) { // 결과가 있을 경우
-                return rs.getInt("id");
-            } else {
-                return 0; // 결과가 없으면 0 반환 (또는 적절한 값)
-            }
+            return rs.next() ? rs.getInt("id") : 0;//userid 반환
 
-        } catch (Exception e) {
+        } catch (SQLException e) {
             e.printStackTrace();
-            return 0; // 예외 발생 시 0 반환
+            return 0;
         }
     }
-
 }
 
 class Item{
