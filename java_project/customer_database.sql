@@ -5,8 +5,7 @@ DROP DATABASE IF EXISTS shoppingcartsystem;
 CREATE DATABASE shoppingcartsystem;
 USE shoppingcartsystem;
 
--- User 테이블 생성 및 초기 데이터
-DROP TABLE IF EXISTS User;
+-- User 테이블 생성
 CREATE TABLE User (
                       id INT AUTO_INCREMENT PRIMARY KEY,
                       name VARCHAR(100) NOT NULL,
@@ -15,13 +14,14 @@ CREATE TABLE User (
                       role ENUM('admin', 'customer') NOT NULL,
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 초기 데이터 삽입
 INSERT INTO User (name, email, password, role)
 VALUES
-    ('test_customer', 'john@example.com', 'password123', 'customer'),
-    ('Admin', 'admin@example.com', 'admin123', 'admin');
+    ('test_customer', 'john@example.com', SHA2('password123', 256), 'customer'),
+    ('Admin', 'admin@example.com', SHA2('admin123', 256), 'admin');
 
--- Inventory 테이블 생성 및 초기 데이터
-DROP TABLE IF EXISTS Inventory;
+-- Inventory 테이블 생성
 CREATE TABLE Inventory (
                            product_id INT AUTO_INCREMENT PRIMARY KEY,
                            product_name VARCHAR(100) NOT NULL,
@@ -31,6 +31,8 @@ CREATE TABLE Inventory (
                            price DECIMAL(10, 2) NOT NULL,
                            added_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 초기 데이터 삽입
 INSERT INTO Inventory (product_name, category, description, quantity, price)
 VALUES
     ('Laptop', 'Electronics', 'High-performance laptop', 10, 1500.00),
@@ -41,17 +43,17 @@ VALUES
 
 -- Orders 테이블 생성
 CREATE TABLE Orders (
-                        order_id INT PRIMARY KEY AUTO_INCREMENT,
+                        order_id INT AUTO_INCREMENT PRIMARY KEY,
                         customer_id INT,
                         order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                         total_price DECIMAL(10, 2),
-                        status VARCHAR(20),
+                        status ENUM('Pending', 'Completed', 'Cancelled') DEFAULT 'Pending',
                         FOREIGN KEY (customer_id) REFERENCES User(id)
 );
 
 -- OrderDetails 테이블 생성
 CREATE TABLE OrderDetails (
-                              order_detail_id INT PRIMARY KEY AUTO_INCREMENT,
+                              order_detail_id INT AUTO_INCREMENT PRIMARY KEY,
                               order_id INT,
                               product_name VARCHAR(100) NOT NULL,
                               product_id INT,
@@ -61,8 +63,7 @@ CREATE TABLE OrderDetails (
                               FOREIGN KEY (product_id) REFERENCES Inventory(product_id)
 );
 
--- Board 테이블 생성 및 초기 데이터 삽입
-DROP TABLE IF EXISTS Board;
+-- Board 테이블 생성
 CREATE TABLE Board (
                        post_id INT AUTO_INCREMENT PRIMARY KEY,
                        title VARCHAR(255) NOT NULL,
@@ -70,6 +71,8 @@ CREATE TABLE Board (
                        author VARCHAR(100) NOT NULL,
                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 초기 데이터 삽입
 INSERT INTO Board (title, content, author)
 VALUES
     ('Welcome to the Board!', 'This is the first post on our board.', 'Admin'),

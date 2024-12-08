@@ -1054,4 +1054,30 @@ public class Main {
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
+    // 게시판 패널 구성
+            JTextArea boardTextArea = new JTextArea();
+            boardTextArea.setEditable(false);
+            JScrollPane scrollPane = new JScrollPane(boardTextArea);
+            BoardPanel.add(scrollPane, BorderLayout.CENTER);
+
+            JButton refreshButton = new JButton("Refresh");
+            refreshButton.addActionListener(e -> {
+                BoardDAO boardDAO = new BoardDAO();
+                List<String> posts = boardDAO.getPosts();
+                boardTextArea.setText(""); // 기존 내용 지우기
+                for (String post : posts) {
+                    boardTextArea.append(post + "\n\n");
+                }
+            });
+            BoardPanel.add(refreshButton, BorderLayout.SOUTH);
+
+            // 게시판 버튼
+            JButton BoardButton = new JButton("Board");
+            BoardButton.setBounds(250, 350, 100, 20);
+            BoardButton.addActionListener(e -> cardLayout.show(cardPanel, "BoardPanel"));
+            RegisterPanel.add(BoardButton);
+
+            frame.add(cardPanel);
+            frame.setLocationRelativeTo(null);
+            frame.setVisible(true);
 }
