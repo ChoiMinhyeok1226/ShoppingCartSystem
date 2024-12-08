@@ -1,12 +1,345 @@
+
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
+import java.util.*;
 import java.util.List;
+
+class BoardDAO {
+    // 게시글 추가
+    public boolean addPost(String title, String content, String author) {
+        String query = "INSERT INTO Board (title, content, author) VALUES (?, ?, ?)";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+            pstmt.setString(1, title);
+            pstmt.setString(2, content);
+            pstmt.setString(3, author);
+            return pstmt.executeUpdate() > 0;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // 게시글 목록 가져오기
+    public List<String> getPosts() {
+        List<String> posts = new ArrayList<>();
+        String query = "SELECT * FROM Board ORDER BY created_at DESC";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query);
+             ResultSet rs = pstmt.executeQuery()) {
+            while (rs.next()) {
+                String post = String.format("Title: %s\nAuthor: %s\nContent: %s\nDate: %s\n",
+                        rs.getString("title"),
+                        rs.getString("author"),
+                        rs.getString("content"),
+                        rs.getTimestamp("created_at"));
+                posts.add(post);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return posts;
+    }
+}
+
+class AdminInventoryDatabase {
+    public DefaultTableModel getInventoryTableModel() {
+        DefaultTableModel tableModel = new DefaultTableModel() {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // 모든 셀을 수정 불가로 설정
+            }
+        };
+        String query = "SELECT * FROM Inventory";
+        Connection conn= null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+
+            conn = DatabaseUtil.getConnection();
+            pstmt = conn.prepareStatement(query);
+            rs = pstmt.executeQuery();
+
+            int colcount = rs.getMetaData().getColumnCount();
+            for(int c = 1; c<=colcount; c++) {
+                tableModel.addColumn(rs.getMetaData().getColumnName(c));
+            }
+
+            while (rs.next()) {
+                Object[] rowData = new Object[colcount];
+                for (int i = 1; i <= colcount; i++) {
+                    rowData[i - 1] = rs.getObject(i);
+                }
+                tableModel.addRow(rowData);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        finally {
+
+            try {
+                pstmt.close();
+                conn.close();
+            } catch (Exception e2) {
+                // TODO: handle exception
+            }
+        }
+        return tableModel;
+    }
+
+    public boolean updateProductQuantity(int product_id, int quantity) {
+        String selectQuery = "SELECT * FROM Inventory WHERE product_id = ?";
+        String updateQuery = "UPDATE Inventory SET quantity = quantity + ? WHERE product_id = ?";
+        Connection conn= null;
+        PreparedStatement pstmt = null;
+        PreparedStatement pstmt2 = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DatabaseUtil.getConnection();
+            pstmt = conn.prepareStatement(selectQuery);
+
+            pstmt.setInt(1, product_id);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) { // 존재하면
+                try {
+                    pstmt2 = conn.prepareStatement(updateQuery);
+                    pstmt2.setInt(1, quantity);
+                    pstmt2.setInt(2, product_id);
+                    pstmt2.executeUpdate();
+                    return true; // 수량 업데이트 성공
+                }catch (Exception e) {
+                    e.printStackTrace();
+                    return false; // 에러 발생
+                }
+            }
+            else {
+                return false; // 제품이 존재하지 않음
+            }
+        }catch (Exception e) {
+            e.printStackTrace();
+            return false; // 에러 발생
+        }
+    }
+    public boolean removeProductQuantity(int product_id, int quantity) {
+        String selectQuery = "SELECT * FROM Inventory WHERE product_id = ?";
+        String updateQuery = "UPDATE Inventory SET quantity = quantity - ? WHERE product_id = ?";
+        Connection conn= null;
+        PreparedStatement pstmt = null;
+        PreparedStatement pstmt2 = null;
+        ResultSet rs = null;
+
+        try {
+            conn = DatabaseUtil.getConnection();
+            pstmt = conn.prepareStatement(selectQuery);
+
+            pstmt.setInt(1, product_id);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) { // 존재하면
+                try {
+                    pstmt2 = conn.prepareStatement(updateQuery);
+                    pstmt2.setInt(1, quantity);
+                    pstmt2.setInt(2, product_id);
+                    pstmt2.executeUpdate();
+                    return true; // 수량 업데이트 성공
+                }catch (Exception e) {
+                    e.printStackTrace();
+                    return false; // 에러 발생
+                }
+            }
+            else {
+                return false; // 제품이 존재하지 않음
+            }
+        }catch (Exception e) {
+            e.printStackTrace();
+            return false; // 에러 발생
+        }
+    }
+
+    public boolean newProductQuantity(String productName, String category,String description,int quantity,float price) {
+        String insertQuery = "INSERT INTO Inventory (product_name, category, description, quantity,price) VALUES(?, ?, ?, ?, ?)";
+        Connection conn= null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DatabaseUtil.getConnection();
+            pstmt = conn.prepareStatement(insertQuery);
+
+            pstmt.setString(1, productName);
+            pstmt.setString(2, category);
+            pstmt.setString(3, description);
+            pstmt.setInt(4, quantity);
+            pstmt.setFloat(5, price);
+
+            int isInserted = pstmt.executeUpdate();
+            return isInserted > 0;
+        }catch (Exception e) {
+            e.printStackTrace();
+            return false; // 에러 발생
+        }
+    }
+    public boolean delProductQuantity(String productName) {
+        String delQuery = "DELETE FROM Inventory WHERE product_name = ?";
+        Connection conn= null;
+        PreparedStatement pstmt = null;
+
+        try {
+            conn = DatabaseUtil.getConnection();
+            pstmt = conn.prepareStatement(delQuery);
+
+            pstmt.setString(1, productName);
+
+            int isDeleted = pstmt.executeUpdate();
+            return isDeleted > 0;
+        }catch (Exception e) {
+            e.printStackTrace();
+            return false; // 에러 발생
+        }
+    }
+}
+
+
+class OrderDetail {
+    private int productId;
+    private int quantity;
+    private double price;
+    private String productName;
+
+    // 생성자
+    public OrderDetail(int productId, String productName, int quantity, double price) {
+        this.productId = productId;
+        this.quantity = quantity;
+        this.price = price;
+        this.productName = productName;
+    }
+
+    // Getter 및 Setter
+    public int getProductId() { return productId; }
+    public void setProductId(int productId) { this.productId = productId; }
+    public int getQuantity() { return quantity; }
+    public void setQuantity(int quantity) { this.quantity = quantity; }
+    public double getPrice() { return price; }
+    public void setPrice(double price) { this.price = price; }
+    public String getProductName() { return productName; }
+}
+
+class Order {
+    private int customerId;
+    private double totalPrice;
+    private List<OrderDetail> orderDetails;
+
+    // 생성자
+    public Order(int customerId, double totalPrice, List<OrderDetail> orderDetails) {
+        this.customerId = customerId;
+        this.totalPrice = totalPrice;
+        this.orderDetails = orderDetails;
+    }
+
+    // Getter 및 Setter
+    public int getCustomerId() { return customerId; }
+    public double getTotalPrice() { return totalPrice; }
+    public List<OrderDetail> getOrderDetails() { return orderDetails; }
+}
+
+
+class OrderDAO {
+
+    // 주문 정보 저장 메서드
+    public void addOrder(Order order) {
+        String orderQuery = "INSERT INTO Orders (customer_id, order_date, total_price, status) VALUES (?, NOW(), ?, ?)";
+        String detailsQuery = "INSERT INTO OrderDetails (order_id, product_name ,product_id, quantity, price) VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement orderStmt = conn.prepareStatement(orderQuery, PreparedStatement.RETURN_GENERATED_KEYS);
+             PreparedStatement detailsStmt = conn.prepareStatement(detailsQuery)) {
+
+            // 1. Orders 테이블에 데이터 삽입
+            orderStmt.setInt(1, order.getCustomerId());
+            orderStmt.setDouble(2, order.getTotalPrice());
+            orderStmt.setString(3, "Pending");
+            orderStmt.executeUpdate();
+
+            // 2. 생성된 order_id 가져오기
+            int orderId = 0;
+            try (ResultSet generatedKeys = orderStmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    orderId = generatedKeys.getInt(1); // auto_increment된 order_id
+                } else {
+                    throw new SQLException("주문 ID 생성 실패: No ID obtained.");
+                }
+            }
+
+            // 3. OrderDetails 테이블에 데이터 삽입
+            for (OrderDetail detail : order.getOrderDetails()) {
+                detailsStmt.setInt(1, orderId);
+                detailsStmt.setString(2, detail.getProductName());
+                detailsStmt.setInt(3, detail.getProductId());
+                detailsStmt.setInt(4, detail.getQuantity());
+                detailsStmt.setDouble(5, detail.getPrice());
+                detailsStmt.addBatch(); // 배치에 추가
+            }
+            detailsStmt.executeBatch(); // 배치 실행
+
+            System.out.println("주문 정보와 상세 정보가 성공적으로 저장되었습니다.");
+
+        } catch (SQLException e) {
+            throw new RuntimeException("주문 정보를 저장하는 중 오류 발생: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("예기치 못한 오류 발생: " + e.getMessage(), e);
+        }
+    }
+
+    public void loadOrderList(int customerId, DefaultTableModel model) {
+        String query = "SELECT order_id, order_date, total_price FROM Orders WHERE customer_id = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+
+            pstmt.setInt(1, customerId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                int orderId = rs.getInt("order_id");
+                Timestamp orderDate = rs.getTimestamp("order_date");
+                double totalPrice = rs.getDouble("total_price");
+
+                model.addRow(new Object[]{orderId, orderDate, totalPrice});
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void loadOrderDetailList(int orderId, DefaultTableModel model) {
+        String query = "SELECT product_id, product_name, quantity, price FROM OrderDetails WHERE order_id = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+
+            pstmt.setInt(1, orderId);
+            ResultSet rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                int productId = rs.getInt("product_id");
+                String productName = rs.getString("product_name");
+                int quantity = rs.getInt("quantity");
+                double price = rs.getDouble("price");
+
+                model.addRow(new Object[]{productId, productName, quantity, price});
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+
 
 class UserDAO {
     public boolean registerUser(String name, String email, String password, String role) {
@@ -23,7 +356,6 @@ class UserDAO {
             return false;
         }
     }
-
     public boolean login(String email, String password) {
         String query = "SELECT password FROM User WHERE email = ?";
         try (Connection conn = DatabaseUtil.getConnection();
@@ -31,16 +363,21 @@ class UserDAO {
             pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
 
-            if (rs.next()) {
-                String storedPassword = rs.getString("password");
-                return storedPassword.equals(password);
+            if (rs.next()) { // 이메일이 존재하는 경우
+                String storedPassword = rs.getString("password"); // DB에 저장된 비밀번호
+                if (storedPassword.equals(password)) { // 입력한 비밀번호와 비교
+                    return true; // 로그인 성공
+                } else {
+                    System.out.println("비밀번호가 일치하지 않습니다.");
+                    return false; // 비밀번호 불일치
+                }
             } else {
                 System.out.println("해당 이메일이 존재하지 않습니다.");
-                return false;
+                return false; // 이메일 없음
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return false;
+            return false; // 예외 발생
         }
     }
 
@@ -51,15 +388,79 @@ class UserDAO {
             pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
 
-            if (rs.next()) {
-                return rs.getString("role").equals("admin");
+            if (rs.next()) { // 이메일이 존재하는 경우
+                String storedRole = rs.getString("role"); // DB에 저장된 역할
+                if (storedRole.equals("admin")) {
+                    return true; // 해당 email은 관리자
+                } else {
+                    return false; // 해당 email은 고객
+                }
             } else {
                 System.out.println("해당 이메일이 존재하지 않습니다.");
-                return false;
+                return false; // 이메일 없음
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return false;
+            return false; // 예외 발생
+        }
+    }
+
+    // 고객 ID 조회
+    public int getCustomerID(String email) {
+        String query = "SELECT id FROM User WHERE email = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+
+            pstmt.setString(1, email);
+            ResultSet rs = pstmt.executeQuery();
+
+            return rs.next() ? rs.getInt("id") : 0;//userid 반환
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+}
+
+class Item{
+    public void loadInventoryData(DefaultTableModel tableModel) {
+        tableModel.setRowCount(0);
+        String query = "SELECT * FROM Inventory";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            ResultSet rs = stmt.executeQuery();
+
+            while (rs.next()) {
+                int productId = rs.getInt("product_id");
+                String productName = rs.getString("product_name");
+                String category = rs.getString("category");
+                int quantity = rs.getInt("quantity");
+                double price = rs.getDouble("price");
+
+                // 데이터를 테이블 모델에 추가
+                tableModel.addRow(new Object[]{productId, productName, category, quantity, price});
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void updateDatabase(DefaultTableModel CarttableModel) {
+        String query = "UPDATE Inventory SET quantity = quantity - ? WHERE product_id = ?";
+        try (Connection conn = DatabaseUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(query)) {
+            for (int i = 0; i < CarttableModel.getRowCount(); i++) {
+                int ProductId = (int) CarttableModel.getValueAt(i, 0); // Product ID 가져오기
+                int decrementQuantity = (int) CarttableModel.getValueAt(i, 2); // 감소시킬 수량 가져오기
+                stmt.setInt(1, decrementQuantity);
+                stmt.setInt(2, ProductId);
+                stmt.executeUpdate();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
@@ -74,62 +475,148 @@ class DatabaseUtil {
     }
 }
 
+class Cart{
+    public static boolean isProductInCart(int productId, DefaultTableModel cartTableModel) {
+        for (int i = 0; i < cartTableModel.getRowCount(); i++) {
+            int cartProductId = (int) cartTableModel.getValueAt(i, 0);
+            if (cartProductId == productId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static void updateProductQuantity(int productId, int newQuantity, DefaultTableModel inventoryModel, DefaultTableModel cartModel) {
+        double itemPrice = 0.0;
+        // inventoryModel (재고 목록 테이블)에서 수량을 업데이트
+        for (int i = 0; i < inventoryModel.getRowCount(); i++) {
+            int cartProductId = (int) inventoryModel.getValueAt(i, 0);
+            itemPrice = (double) inventoryModel.getValueAt(i, 4);
+            if (cartProductId == productId) {
+                int currentQuantity = (int) inventoryModel.getValueAt(i, 3);  // 재고 테이블에서 수량 가져오기
+                inventoryModel.setValueAt(currentQuantity - newQuantity, i, 3); // 재고 수량 업데이트
+                break;
+            }
+        }
+
+        // cartModel (장바구니 테이블)에서 수량을 업데이트
+        for (int i = 0; i < cartModel.getRowCount(); i++) {
+            int cartProductId = (int) cartModel.getValueAt(i, 0);
+            double currentPrice = (double) cartModel.getValueAt(i, 3);
+            if (cartProductId == productId) {
+                int currentQuantity = (int) cartModel.getValueAt(i, 2);  // 장바구니에서 수량 가져오기
+                cartModel.setValueAt(currentQuantity + newQuantity, i, 2); // 장바구니 수량 업데이트
+                cartModel.setValueAt(currentPrice + itemPrice*newQuantity, i, 3);
+                break;
+            }
+        }
+    }
+}
+
+
 public class Main {
+    private static DefaultTableModel tableModel;
+    private static DefaultTableModel cartTableModel;
+    private static JLabel totalPrice;
+    private static JLabel totalPrice2;
+    private static double sum = 0.0;
+    private static int customer_id = 0;
+    private static String Email;
+    private static JLabel userinfo;
+    private static DefaultTableModel orderTableModel;
+    private static DefaultTableModel orderdetailTableModel;
+    private static DefaultTableModel admintableModel;
+    private static JTable inventoryTable;
+
     public static void main(String[] args) {
 
         JFrame frame = new JFrame("ShoppingCartSystem");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(600, 600);
+        frame.setSize(1000, 600);
 
         // CardLayout을 사용하여 패널을 전환
-        JPanel cardPanel = new JPanel(new CardLayout());
+        JPanel cardPanel = new JPanel(new CardLayout());  // 수정된 부분: CardLayout을 사용하여 패널 전환을 관리
 
         JPanel LoginPanel = new JPanel();
-        LoginPanel.setLayout(null);
+        LoginPanel.setLayout(null); // 수정된 부분: null 레이아웃을 사용하여 컴포넌트 위치 지정
         JPanel RegisterPanel = new JPanel();
         RegisterPanel.setLayout(null);
-        JPanel BuyPanel = new JPanel();
+        JPanel BuyPanel = new JPanel();//구매창 패널
         BuyPanel.setLayout(null);
+        JPanel CartPanel = new JPanel();//결제창 패널
+        CartPanel.setLayout(null);
+        JPanel orderPanel = new JPanel();//구매 기록 패널
+        orderPanel.setLayout(null);
+        JPanel orderdetailPanel = new JPanel();
+        orderdetailPanel.setLayout(null);
+        JPanel AdminPanel = new JPanel();
+        AdminPanel.setLayout(null);
         JPanel BoardPanel = new JPanel(new BorderLayout()); // 게시판 패널
 
+        // 각 패널을 cardPanel에 추가
         cardPanel.add(LoginPanel, "LoginPanel");
         cardPanel.add(RegisterPanel, "RegisterPanel");
         cardPanel.add(BuyPanel, "BuyPanel");
+        cardPanel.add(CartPanel, "CartPanel");
+        cardPanel.add(orderPanel, "OrderPanel");
+        cardPanel.add(orderdetailPanel, "OrderdetailPanel");
+        cardPanel.add(AdminPanel, "AdminPanel");
         cardPanel.add(BoardPanel, "BoardPanel");
 
         CardLayout cardLayout = (CardLayout) cardPanel.getLayout();
 
         // 로그인 패널 구성
         JLabel Email_Login = new JLabel("Email");
-        Email_Login.setBounds(100, 100, 100, 20);
+        Email_Login.setBounds(300, 100, 100, 20);
         JLabel Password_Login = new JLabel("Password");
-        Password_Login.setBounds(100, 150, 100, 20);
+        Password_Login.setBounds(300, 150, 100, 20);
 
         JTextField EmailField_Login = new JTextField();
-        EmailField_Login.setBounds(180, 100, 200, 20);
+        EmailField_Login.setBounds(480, 100, 200, 20);
         JPasswordField PasswordField_Login = new JPasswordField();
-        PasswordField_Login.setBounds(180, 150, 200, 20);
+        PasswordField_Login.setBounds(480, 150, 200, 20);
 
         JButton Login_Button = new JButton("Login");
-        Login_Button.setBounds(100, 300, 100, 20);
-        Login_Button.addActionListener(e -> {
-            UserDAO userDAO = new UserDAO();
-            if (userDAO.login(EmailField_Login.getText(), PasswordField_Login.getText())) {
-                JOptionPane.showMessageDialog(null, "Login Success", "Message", JOptionPane.INFORMATION_MESSAGE);
-                if (userDAO.role_check(EmailField_Login.getText())) {
-                    // 관리자 계정일 경우
-                    JOptionPane.showMessageDialog(null, "Welcome Admin", "Message", JOptionPane.INFORMATION_MESSAGE);
-                } else {
-                    cardLayout.show(cardPanel, "BuyPanel");
+        Login_Button.setBounds(350, 300, 100, 20);
+        Login_Button.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                UserDAO userDAO = new UserDAO();
+                customer_id = userDAO.getCustomerID(EmailField_Login.getText());
+                Email = EmailField_Login.getText();
+                userinfo.setText(Email +" : "+customer_id);
+
+                if(userDAO.login(EmailField_Login.getText(), PasswordField_Login.getText())){
+                    JOptionPane.showMessageDialog(null, "Login Success", "Message", JOptionPane.INFORMATION_MESSAGE);
+                    if(userDAO.role_check(EmailField_Login.getText())){
+                        AdminInventoryDatabase InventoryDatabase = new AdminInventoryDatabase();
+
+                        admintableModel = InventoryDatabase.getInventoryTableModel();
+                        inventoryTable.setModel(admintableModel);
+                        cardLayout.show(cardPanel, "AdminPanel");
+                    }
+                    else{
+                        tableModel.setRowCount(0);
+                        Item item = new Item();
+                        item.loadInventoryData(tableModel); // 테이블 모델에 데이터를 로드
+                        cardLayout.show(cardPanel, "BuyPanel");//로그인에 성공하고 고객 계정이라면 구매 패널로 이동
+                    }
                 }
-            } else {
-                JOptionPane.showMessageDialog(null, "Login Fail", "Message", JOptionPane.ERROR_MESSAGE);
+                else
+                    JOptionPane.showMessageDialog(null, "Login Fail", "Message", JOptionPane.INFORMATION_MESSAGE);
+
+
             }
         });
 
         JButton Register_Button_Login = new JButton("Register");
-        Register_Button_Login.setBounds(250, 300, 100, 20);
-        Register_Button_Login.addActionListener(e -> cardLayout.show(cardPanel, "RegisterPanel"));
+        Register_Button_Login.setBounds(550, 300, 100, 20);
+        Register_Button_Login.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cardLayout.show(cardPanel, "RegisterPanel");  // 수정된 부분: "RegisterPanel"로 전환
+            }
+        });
 
         LoginPanel.add(Email_Login);
         LoginPanel.add(Password_Login);
@@ -137,6 +624,9 @@ public class Main {
         LoginPanel.add(PasswordField_Login);
         LoginPanel.add(Login_Button);
         LoginPanel.add(Register_Button_Login);
+
+
+
 
         // 회원가입 패널 구성
         JLabel Name_Register = new JLabel("Name");
@@ -155,14 +645,17 @@ public class Main {
 
         JButton Register_Button = new JButton("Register");
         Register_Button.setBounds(100, 300, 100, 20);
-        Register_Button.addActionListener(e -> {
-            UserDAO userDAO = new UserDAO();
-            if (userDAO.registerUser(NameField_Register.getText(), EmailField_Register.getText(),
-                    PasswordField_Register.getText(), "customer")) {
-                JOptionPane.showMessageDialog(null, "Registration Success", "Message", JOptionPane.INFORMATION_MESSAGE);
-                cardLayout.show(cardPanel, "LoginPanel");
-            } else {
-                JOptionPane.showMessageDialog(null, "Registration Failed", "Message", JOptionPane.ERROR_MESSAGE);
+        Register_Button.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                UserDAO userDAO = new UserDAO();
+                //회원가입은 고객 계정으로만 가능
+                if(userDAO.registerUser(NameField_Register.getText(), EmailField_Register.getText(), PasswordField_Register.getText(), "customer")) {
+                    JOptionPane.showMessageDialog(null, "Registration Success", "Message", JOptionPane.INFORMATION_MESSAGE);
+                    cardLayout.show(cardPanel, "LoginPanel");
+                }
+                else
+                    JOptionPane.showMessageDialog(null, "Registration Fail", "Message", JOptionPane.INFORMATION_MESSAGE);
             }
         });
 
@@ -177,8 +670,8 @@ public class Main {
         // 게시판 패널 구성
         JTextArea boardTextArea = new JTextArea();
         boardTextArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(boardTextArea);
-        BoardPanel.add(scrollPane, BorderLayout.CENTER);
+        JScrollPane boardscrollPane = new JScrollPane(boardTextArea);
+        BoardPanel.add(boardscrollPane, BorderLayout.CENTER);
 
         JButton refreshButton = new JButton("Refresh");
         refreshButton.addActionListener(e -> {
@@ -193,13 +686,429 @@ public class Main {
 
         // 게시판 버튼
         JButton BoardButton = new JButton("Board");
-        BoardButton.setBounds(250, 350, 100, 20);
+        BoardButton.setBounds(250, 30, 100, 20);
         BoardButton.addActionListener(e -> cardLayout.show(cardPanel, "BoardPanel"));
-        RegisterPanel.add(BoardButton);
+        BuyPanel.add(BoardButton);
 
+        //관리자 패널 구성
+        AdminInventoryDatabase inventoryDatabase = new AdminInventoryDatabase();
+        admintableModel = inventoryDatabase.getInventoryTableModel();
+
+        inventoryTable = new JTable(admintableModel);
+        JScrollPane adminscrollPane = new JScrollPane(inventoryTable);
+        adminscrollPane.setBounds(300,100,600,300);
+        AdminPanel.add(adminscrollPane);
+
+        JLabel AdminLabel = new JLabel("Admin Page");
+        AdminLabel.setBounds(100, 50, 200, 30);
+        AdminPanel.add(AdminLabel);
+
+        // 관리자 버튼
+        JButton AddProductButton = new JButton("Add Amount");
+        AddProductButton.setBounds(100, 100, 150, 30);
+        AddProductButton.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // 제품명과 수량 입력받기
+                String product_id = JOptionPane.showInputDialog(null, "Enter Product ID:");
+                String quantityInput = JOptionPane.showInputDialog(null, "Enter Quantity:");
+                int pid;
+                pid = Integer.parseInt(product_id);
+                int quantity;
+                quantity = Integer.parseInt(quantityInput);
+
+                // 데이터베이스 업데이트
+                AdminInventoryDatabase inventoryDatabase = new AdminInventoryDatabase();
+                boolean updated = inventoryDatabase.updateProductQuantity(pid, quantity);
+
+                if (updated) {
+                    JOptionPane.showMessageDialog(null, "Product quantity updated successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+                    // 테이블 갱신
+                    admintableModel = inventoryDatabase.getInventoryTableModel();
+                    inventoryTable.setModel(admintableModel);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Product not found in the database.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+
+            }
+        });
+        AdminPanel.add(AddProductButton);
+
+        JButton RemoveProductButton = new JButton("Reduce Amount");
+        RemoveProductButton.setBounds(100, 150, 150, 30);
+        RemoveProductButton.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // TODO Auto-generated method stub
+                // 제품명과 수량 입력받기
+                String product_id = JOptionPane.showInputDialog(null, "Enter Product ID:");
+                String quantityInput = JOptionPane.showInputDialog(null, "Enter Quantity:");
+                int pid;
+                pid = Integer.parseInt(product_id);
+                int quantity;
+                quantity = Integer.parseInt(quantityInput);
+
+                // 데이터베이스 업데이트
+                AdminInventoryDatabase inventoryDatabase = new AdminInventoryDatabase();
+                boolean updated = inventoryDatabase.removeProductQuantity(pid, quantity);
+
+                if (updated) {
+                    JOptionPane.showMessageDialog(null, "Product quantity updated successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+                    // 테이블 갱신
+                    admintableModel = inventoryDatabase.getInventoryTableModel();
+                    inventoryTable.setModel(admintableModel);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Product not found in the database.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        AdminPanel.add(RemoveProductButton);
+
+        JButton newProductButton = new JButton("New Product");
+        newProductButton.setBounds(100, 200, 150, 30);
+        newProductButton.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // TODO Auto-generated method stub
+                // 제품 정보 입력하기
+                String productName = JOptionPane.showInputDialog(null, "Enter Product Name:");
+                String category = JOptionPane.showInputDialog(null, "Enter Product Category:");
+                String description = JOptionPane.showInputDialog(null, "Enter Product Description:");
+                String quantityInput = JOptionPane.showInputDialog(null, "Enter Produce Quantity:");
+                String price = JOptionPane.showInputDialog(null, "Enter Product price:");
+
+                int quantity;
+                quantity = Integer.parseInt(quantityInput);
+                float price_i;
+                price_i = Float.parseFloat(price);
+                // 데이터베이스 업데이트
+                AdminInventoryDatabase inventoryDatabase = new AdminInventoryDatabase();
+                boolean updated = inventoryDatabase.newProductQuantity(productName, category,description,quantity,price_i);
+
+                if (updated) {
+                    JOptionPane.showMessageDialog(null, "Product quantity updated successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+                    // 테이블 갱신
+                    admintableModel = inventoryDatabase.getInventoryTableModel();
+                    inventoryTable.setModel(admintableModel);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Product not found in the database.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        AdminPanel.add(newProductButton);
+
+        JButton delProductButton = new JButton("Delete Product");
+        delProductButton.setBounds(100, 250, 150, 30);
+        delProductButton.addActionListener(new ActionListener() {
+
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // TODO Auto-generated method stub
+                // 제품 정보 입력하기
+                String productName = JOptionPane.showInputDialog(null, "Enter Product Name:");
+
+                // 데이터베이스 업데이트
+                AdminInventoryDatabase inventoryDatabase = new AdminInventoryDatabase();
+                boolean updated = inventoryDatabase.delProductQuantity(productName);
+
+                if (updated) {
+                    JOptionPane.showMessageDialog(null, "Product quantity updated successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+
+                    // 테이블 갱신
+                    admintableModel = inventoryDatabase.getInventoryTableModel();
+                    inventoryTable.setModel(admintableModel);
+                } else {
+                    JOptionPane.showMessageDialog(null, "Product not found in the database.", "Error", JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+
+        AdminPanel.add(delProductButton);
+
+
+        JButton RefreshButton = new JButton("Refresh");
+        RefreshButton.setBounds(100, 300, 150, 30);
+        RefreshButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // 테이블 데이터 새로고침
+                DefaultTableModel newTableModel = inventoryDatabase.getInventoryTableModel();
+                inventoryTable.setModel(newTableModel);
+            }
+        });
+        AdminPanel.add(RefreshButton);
+
+        JButton LogoutButton = new JButton("Logout");
+        LogoutButton.setBounds(100, 350, 150, 30);
+        LogoutButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                // 로그인 화면으로 전환
+                cardLayout.show(cardPanel, "LoginPanel");
+            }
+        });
+        AdminPanel.add(LogoutButton);
+
+
+
+
+        //구매 패널 구성
+        String[] columnNames = {"Product ID", "Product Name", "Category", "Quantity", "Price"};
+        tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                // 모든 셀에 대해 수정 불가 설정
+                return false;
+            }
+        };
+        JTable menuTable = new JTable(tableModel);
+        menuTable.getSelectionModel().addListSelectionListener(event -> {
+            // 이벤트가 발생한 JTable에서 선택된 행 가져오기
+            int selectedRow = menuTable.getSelectedRow();
+            // 선택된 행이 있는 경우
+            if (selectedRow != -1) {
+                int confirmResult = JOptionPane.showConfirmDialog(null,
+                        "Do you want to add cart?", "Confirm", JOptionPane.YES_NO_OPTION);
+                if (confirmResult == JOptionPane.YES_OPTION) {
+                    double price = (double) tableModel.getValueAt(selectedRow, 4);
+                    String quantityInput = JOptionPane.showInputDialog(null,
+                            "Enter the quantity:", "Quantity", JOptionPane.QUESTION_MESSAGE);
+                    try {
+                        int quantity = Integer.parseInt(quantityInput);
+                        int productId = (int) tableModel.getValueAt(selectedRow, 0);
+                        int Max_quan = (int) tableModel.getValueAt(selectedRow, 3);
+                        if(quantity > Max_quan){
+                            JOptionPane.showMessageDialog(null, "Quantity Exceeded", "Message", JOptionPane.INFORMATION_MESSAGE);
+                        }
+                        else if (quantity > 0) {
+                            Cart cart = new Cart();
+                            if (!cart.isProductInCart(productId, cartTableModel)) {
+                                cartTableModel.addRow(new Object[]{
+                                        productId,
+                                        tableModel.getValueAt(selectedRow, 1),  // 상품명
+                                        0,
+                                        0.0
+                                });
+                            }
+                            cart.updateProductQuantity(productId, quantity, tableModel,cartTableModel);
+
+                            sum += quantity*price; // 총합 업데이트
+                            totalPrice.setText("Total Price : " + sum); // 합계 레이블 업데이트
+                            totalPrice2.setText("Total Price : "+sum);
+                        }else {
+                            JOptionPane.showMessageDialog(null, "Please enter a valid quantity.", "Error", JOptionPane.ERROR_MESSAGE);
+                        }
+                    } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(null, "Invalid quantity. Please enter a number.", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+
+                } else {
+                    System.out.println("You selected NO");
+                }
+            }
+        });
+
+        JScrollPane scrollPane = new JScrollPane(menuTable);
+        scrollPane.setBounds(150, 100, 700, 300);
+        BuyPanel.add(scrollPane);
+
+        totalPrice = new JLabel("Total Price : "+"0");
+        totalPrice.setBounds(150, 400, 300, 100);
+        totalPrice.setFont(new Font("Times New Roman", Font.PLAIN, 20));
+        BuyPanel.add(totalPrice);
+
+        JButton goCart = new JButton("Go Cart");
+        goCart.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cardLayout.show(cardPanel, "CartPanel");
+            }
+        });
+        goCart.setBounds(750, 30, 100, 20);
+        BuyPanel.add(goCart);
+
+        JButton logout = new JButton("Logout");
+        logout.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int confirmResult = JOptionPane.showConfirmDialog(null,
+                        "Your shopping cart will be cleared upon logging out. Are you sure you want to log out?", "Confirm", JOptionPane.YES_NO_OPTION);
+                if (confirmResult == JOptionPane.YES_OPTION) {
+                    sum = 0.0; // 총합 초기화
+                    cartTableModel.setRowCount(0); // 카트 테이블 초기화
+                    totalPrice.setText("Total Price : 0");// 총합 레이블 초기화
+                    totalPrice2.setText("Total Price : 0");
+                    cardLayout.show(cardPanel, "LoginPanel");
+                }else ;
+            }
+        });
+        logout.setBounds(150, 30, 100, 20);
+        BuyPanel.add(logout);
+
+        userinfo = new JLabel();
+        userinfo.setBounds(150 ,70 ,100, 20);
+        BuyPanel.add(userinfo);
+
+        JButton orderlist = new JButton("Orderlist");
+        orderlist.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cardLayout.show(cardPanel, "OrderPanel");
+                OrderDAO orderDAO = new OrderDAO();
+                orderTableModel.setRowCount(0);
+                orderDAO.loadOrderList(customer_id,orderTableModel);
+            }
+        });
+        orderlist.setBounds(650, 30, 100, 20);
+        BuyPanel.add(orderlist);
+
+        //주문목록 패널
+        String[] orderColumnNames = {"Order ID", "Order date", "Total price"};
+        orderTableModel = new DefaultTableModel(orderColumnNames, 0) {
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        JTable orderTable = new JTable(orderTableModel);
+        orderTable.getSelectionModel().addListSelectionListener(event -> {
+            int selectedRow = orderTable.getSelectedRow();
+            if (selectedRow != -1) {
+                orderdetailTableModel.setRowCount(0);
+                int orderId = (int) orderTableModel.getValueAt(selectedRow, 0);
+                OrderDAO orderDAO = new OrderDAO();
+                orderDAO.loadOrderDetailList(orderId, orderdetailTableModel);
+                cardLayout.show(cardPanel, "OrderdetailPanel");
+            }
+        });
+
+        JScrollPane orderScrollPane = new JScrollPane(orderTable);
+        orderScrollPane.setBounds(150, 100, 700, 300);
+        orderPanel.add(orderScrollPane);
+
+        JButton goBuy = new JButton("Back");
+        goBuy.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cardLayout.show(cardPanel, "BuyPanel");
+            }
+        });
+        goBuy.setBounds(750, 30, 100, 20);
+        orderPanel.add(goBuy);
+
+        //상세 주문 패널 구성
+        String[] orderdetailColumnNames = {"Product ID", "Product Name", "Quantity", "Price"};
+        orderdetailTableModel = new DefaultTableModel(orderdetailColumnNames, 0) {
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        JTable orderdetailTable = new JTable(orderdetailTableModel);
+
+        JScrollPane orderdetailScrollPane = new JScrollPane(orderdetailTable);
+        orderdetailScrollPane.setBounds(150, 100, 700, 300);
+        orderdetailPanel.add(orderdetailScrollPane);
+
+        JButton goOrder = new JButton("Back");
+        goOrder.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cardLayout.show(cardPanel, "OrderPanel");
+            }
+        });
+        goOrder.setBounds(750, 30, 100, 20);
+        orderdetailPanel.add(goOrder);
+
+        //카트 패널 구성
+        String[] cartColumnNames = {"Product ID", "Product Name", "Quantity", "Price"};
+        cartTableModel = new DefaultTableModel(cartColumnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // 셀 수정 불가
+            }
+        };
+
+        JTable cartTable = new JTable(cartTableModel);
+        JScrollPane cartScrollPane = new JScrollPane(cartTable);
+        cartScrollPane.setBounds(150, 100, 700, 300);
+        CartPanel.add(cartScrollPane);
+
+        JButton payment = new JButton("Payment");
+        payment.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                int confirmResult = JOptionPane.showConfirmDialog(null,
+                        "Total Price: " + sum + "\nWould you like to pay for the items in your shopping cart?", "Confirm", JOptionPane.YES_NO_OPTION);
+                if (confirmResult == JOptionPane.YES_OPTION) {
+                    // cartTableModel에서 주문 상세 정보 추출
+                    List<OrderDetail> orderDetails = new ArrayList<>();
+                    for (int i = 0; i < cartTableModel.getRowCount(); i++) {
+                        int productId = (int) cartTableModel.getValueAt(i, 0); // Product ID
+                        String productName = (String) cartTableModel.getValueAt(i, 1); // Product Name
+                        int quantity = (int) cartTableModel.getValueAt(i, 2); // Quantity
+                        double price = (double) cartTableModel.getValueAt(i, 3); // Price
+
+                        // OrderDetail 객체 생성 후 리스트에 추가
+                        orderDetails.add(new OrderDetail(productId, productName,quantity, price));
+                    }
+
+                    // Order 객체 생성
+                    Order order = new Order(customer_id, sum, orderDetails);
+
+                    // 주문 정보를 데이터베이스에 저장
+                    Item item = new Item();
+
+                    OrderDAO orderDAO = new OrderDAO();
+                    orderDAO.addOrder(order); // 주문 정보를 데이터베이스에 저장하는 메서드 호출
+
+                    // 성공 메시지 표시
+                    JOptionPane.showMessageDialog(null, "Your order has been successfully placed.", "Order", JOptionPane.INFORMATION_MESSAGE);
+
+                    //데이터베이스 재고 정보 업데이트
+                    item.updateDatabase(cartTableModel);
+
+                    // 재고 정보 새로고침
+                    item.loadInventoryData(tableModel);
+
+                    // 카트 비우기 및 UI 업데이트
+                    sum = 0.0;
+                    totalPrice.setText("Total Price : 0");
+                    totalPrice2.setText("Total Price : 0");
+                    cartTableModel.setRowCount(0); // 카트 내용 비우기
+                    cardLayout.show(cardPanel, "BuyPanel");
+                }
+            }
+        });
+
+        payment.setBounds(750, 430, 100, 20);
+        CartPanel.add(payment);
+
+        JButton back = new JButton("Back");
+        back.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cardLayout.show(cardPanel, "BuyPanel");
+            }
+        });
+        back.setBounds(750, 30, 100, 20);
+        CartPanel.add(back);
+
+        totalPrice2 = new JLabel("Total Price : "+"0");
+        totalPrice2.setBounds(150, 400, 300, 100);
+        totalPrice2.setFont(new Font("Times New Roman", Font.PLAIN, 20));
+        CartPanel.add(totalPrice2);
+
+        // 프레임에 cardPanel 추가
         frame.add(cardPanel);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
 }
-
