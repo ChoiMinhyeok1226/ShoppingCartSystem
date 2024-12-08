@@ -6,6 +6,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.util.List;
 
 class UserDAO {
     public boolean registerUser(String name, String email, String password, String role) {
@@ -22,6 +23,7 @@ class UserDAO {
             return false;
         }
     }
+
     public boolean login(String email, String password) {
         String query = "SELECT password FROM User WHERE email = ?";
         try (Connection conn = DatabaseUtil.getConnection();
@@ -29,21 +31,16 @@ class UserDAO {
             pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
 
-            if (rs.next()) { // 이메일이 존재하는 경우
-                String storedPassword = rs.getString("password"); // DB에 저장된 비밀번호
-                if (storedPassword.equals(password)) { // 입력한 비밀번호와 비교
-                    return true; // 로그인 성공
-                } else {
-                    System.out.println("비밀번호가 일치하지 않습니다.");
-                    return false; // 비밀번호 불일치
-                }
+            if (rs.next()) {
+                String storedPassword = rs.getString("password");
+                return storedPassword.equals(password);
             } else {
                 System.out.println("해당 이메일이 존재하지 않습니다.");
-                return false; // 이메일 없음
+                return false;
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return false; // 예외 발생
+            return false;
         }
     }
 
@@ -54,20 +51,15 @@ class UserDAO {
             pstmt.setString(1, email);
             ResultSet rs = pstmt.executeQuery();
 
-            if (rs.next()) { // 이메일이 존재하는 경우
-                String storedRole = rs.getString("role"); // DB에 저장된 역할
-                if (storedRole.equals("admin")) {
-                    return true; // 해당 email은 관리자
-                } else {
-                    return false; // 해당 email은 고객
-                }
+            if (rs.next()) {
+                return rs.getString("role").equals("admin");
             } else {
                 System.out.println("해당 이메일이 존재하지 않습니다.");
-                return false; // 이메일 없음
+                return false;
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return false; // 예외 발생
+            return false;
         }
     }
 }
@@ -82,8 +74,6 @@ class DatabaseUtil {
     }
 }
 
-
-
 public class Main {
     public static void main(String[] args) {
 
@@ -92,19 +82,20 @@ public class Main {
         frame.setSize(600, 600);
 
         // CardLayout을 사용하여 패널을 전환
-        JPanel cardPanel = new JPanel(new CardLayout());  // 수정된 부분: CardLayout을 사용하여 패널 전환을 관리
+        JPanel cardPanel = new JPanel(new CardLayout());
 
         JPanel LoginPanel = new JPanel();
-        LoginPanel.setLayout(null); // 수정된 부분: null 레이아웃을 사용하여 컴포넌트 위치 지정
+        LoginPanel.setLayout(null);
         JPanel RegisterPanel = new JPanel();
         RegisterPanel.setLayout(null);
-        JPanel BuyPanel = new JPanel();//구매창 패널
+        JPanel BuyPanel = new JPanel();
         BuyPanel.setLayout(null);
+        JPanel BoardPanel = new JPanel(new BorderLayout()); // 게시판 패널
 
-        // 각 패널을 cardPanel에 추가
         cardPanel.add(LoginPanel, "LoginPanel");
         cardPanel.add(RegisterPanel, "RegisterPanel");
         cardPanel.add(BuyPanel, "BuyPanel");
+        cardPanel.add(BoardPanel, "BoardPanel");
 
         CardLayout cardLayout = (CardLayout) cardPanel.getLayout();
 
@@ -121,36 +112,24 @@ public class Main {
 
         JButton Login_Button = new JButton("Login");
         Login_Button.setBounds(100, 300, 100, 20);
-        Login_Button.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                UserDAO userDAO = new UserDAO();
-
-                if(userDAO.login(EmailField_Login.getText(), PasswordField_Login.getText())){
-                    JOptionPane.showMessageDialog(null, "Login Success", "Message", JOptionPane.INFORMATION_MESSAGE);
-                    if(userDAO.role_check(EmailField_Login.getText())){
-                       //로그인에 성공하고, 관리자 계정이면 제품 관리자 패널로 이동해야함
-                    }
-                    else{
-                        cardLayout.show(cardPanel, "BuyPanel");//로그인에 성공하고 고객 계정이라면 구매 패널로 이동
-                    }
+        Login_Button.addActionListener(e -> {
+            UserDAO userDAO = new UserDAO();
+            if (userDAO.login(EmailField_Login.getText(), PasswordField_Login.getText())) {
+                JOptionPane.showMessageDialog(null, "Login Success", "Message", JOptionPane.INFORMATION_MESSAGE);
+                if (userDAO.role_check(EmailField_Login.getText())) {
+                    // 관리자 계정일 경우
+                    JOptionPane.showMessageDialog(null, "Welcome Admin", "Message", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    cardLayout.show(cardPanel, "BuyPanel");
                 }
-                else
-                    JOptionPane.showMessageDialog(null, "Login Fail", "Message", JOptionPane.INFORMATION_MESSAGE);
-
-
+            } else {
+                JOptionPane.showMessageDialog(null, "Login Fail", "Message", JOptionPane.ERROR_MESSAGE);
             }
         });
 
         JButton Register_Button_Login = new JButton("Register");
         Register_Button_Login.setBounds(250, 300, 100, 20);
-        Register_Button_Login.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // RegisterPanel로 전환
-                cardLayout.show(cardPanel, "RegisterPanel");  // 수정된 부분: "RegisterPanel"로 전환
-            }
-        });
+        Register_Button_Login.addActionListener(e -> cardLayout.show(cardPanel, "RegisterPanel"));
 
         LoginPanel.add(Email_Login);
         LoginPanel.add(Password_Login);
@@ -176,11 +155,14 @@ public class Main {
 
         JButton Register_Button = new JButton("Register");
         Register_Button.setBounds(100, 300, 100, 20);
-        Register_Button.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                // 회원가입 로직 (UserDAO.registerUser 메소드 호출)
+        Register_Button.addActionListener(e -> {
+            UserDAO userDAO = new UserDAO();
+            if (userDAO.registerUser(NameField_Register.getText(), EmailField_Register.getText(),
+                    PasswordField_Register.getText(), "customer")) {
                 JOptionPane.showMessageDialog(null, "Registration Success", "Message", JOptionPane.INFORMATION_MESSAGE);
+                cardLayout.show(cardPanel, "LoginPanel");
+            } else {
+                JOptionPane.showMessageDialog(null, "Registration Failed", "Message", JOptionPane.ERROR_MESSAGE);
             }
         });
 
@@ -192,12 +174,32 @@ public class Main {
         RegisterPanel.add(PasswordField_Register);
         RegisterPanel.add(Register_Button);
 
-        //구매 패널 구성
+        // 게시판 패널 구성
+        JTextArea boardTextArea = new JTextArea();
+        boardTextArea.setEditable(false);
+        JScrollPane scrollPane = new JScrollPane(boardTextArea);
+        BoardPanel.add(scrollPane, BorderLayout.CENTER);
 
+        JButton refreshButton = new JButton("Refresh");
+        refreshButton.addActionListener(e -> {
+            BoardDAO boardDAO = new BoardDAO();
+            List<String> posts = boardDAO.getPosts();
+            boardTextArea.setText(""); // 기존 내용 지우기
+            for (String post : posts) {
+                boardTextArea.append(post + "\n\n");
+            }
+        });
+        BoardPanel.add(refreshButton, BorderLayout.SOUTH);
 
-        // 프레임에 cardPanel 추가
+        // 게시판 버튼
+        JButton BoardButton = new JButton("Board");
+        BoardButton.setBounds(250, 350, 100, 20);
+        BoardButton.addActionListener(e -> cardLayout.show(cardPanel, "BoardPanel"));
+        RegisterPanel.add(BoardButton);
+
         frame.add(cardPanel);
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
     }
 }
+
