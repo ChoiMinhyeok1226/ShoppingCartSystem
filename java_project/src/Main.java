@@ -8,29 +8,192 @@ import java.sql.*;
 import java.util.*;
 import java.util.List;
 
-class BoardDAO {
+abstract class BaseDAO {
+    
+    // 공통적으로 데이터베이스 연결 가져오기
+    protected Connection getConnection() throws Exception {
+        return DatabaseUtil.getConnection(); // 공통 유틸 클래스 사용
+    }
+    
+    // PreparedStatement를 사용한 데이터 수정 작업 (INSERT, UPDATE, DELETE)
+    protected boolean executeUpdate(String query, Object... params) {
+        try (Connection conn = getConnection();
+             PreparedStatement pstmt = conn.prepareStatement(query)) {
+
+            setParameters(pstmt, params); // 파라미터 설정
+            return pstmt.executeUpdate() > 0; // 수정된 행이 1개 이상일 때 true
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    
+    // PreparedStatement를 사용한 데이터 조회 작업 (SELECT)
+    protected ResultSet executeQuery(String query, Object... params) throws Exception {
+        Connection conn = getConnection();
+        PreparedStatement pstmt = conn.prepareStatement(query);
+        setParameters(pstmt, params); // 파라미터 설정
+        return pstmt.executeQuery(); // 호출한 DAO에서 ResultSet 처리
+    }
+    
+    // PreparedStatement 파라미터 설정 메서드
+    public void setParameters(PreparedStatement pstmt, Object... params) throws SQLException {
+        for (int i = 0; i < params.length; i++) {
+            pstmt.setObject(i + 1, params[i]);
+        }
+    }
+}
+
+class UserDAO extends BaseDAO {
+
+    // 회원 등록
+    public boolean registerUser(String name, String email, String password, String role) {
+        String query = "INSERT INTO User (name, email, password, role) VALUES (?, ?, ?, ?)";
+        return executeUpdate(query, name, email, password, role); // BaseDAO 메서드 사용
+    }
+
+    // 로그인
+    public boolean login(String email, String password) {
+        String query = "SELECT password FROM User WHERE email = ?";
+        try (ResultSet rs = executeQuery(query, email)) { // BaseDAO 메서드 사용
+            if (rs.next()) {
+                return rs.getString("password").equals(password);
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return false;
+    }
+
+    // 역할 확인
+    public boolean roleCheck(String email) {
+        String query = "SELECT role FROM User WHERE email = ?";
+        try (ResultSet rs = executeQuery(query, email)) { // BaseDAO 메서드 사용
+            if (rs.next()) {
+                return "admin".equals(rs.getString("role"));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return false;
+    }
+
+    // 고객 ID 조회
+    public int getCustomerID(String email) {
+        String query = "SELECT id FROM User WHERE email = ?";
+        try (ResultSet rs = executeQuery(query, email)) { // BaseDAO 메서드 사용
+            return rs.next() ? rs.getInt("id") : 0;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return 0;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+class OrderDAO extends BaseDAO {
+
+    // 주문 정보 저장
+    public void addOrder(Order order) {
+        String orderQuery = "INSERT INTO Orders (customer_id, order_date, total_price, status) VALUES (?, NOW(), ?, ?)";
+        String detailsQuery = "INSERT INTO OrderDetails (order_id, product_name, product_id, quantity, price) VALUES (?, ?, ?, ?, ?)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement orderStmt = conn.prepareStatement(orderQuery, PreparedStatement.RETURN_GENERATED_KEYS);
+             PreparedStatement detailsStmt = conn.prepareStatement(detailsQuery)) {
+
+            // 1. Orders 테이블에 데이터 삽입
+            setParameters(orderStmt, order.getCustomerId(), order.getTotalPrice(), "Pending");
+            orderStmt.executeUpdate();
+
+            // 2. 생성된 order_id 가져오기
+            int orderId = 0;
+            try (ResultSet generatedKeys = orderStmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    orderId = generatedKeys.getInt(1); // auto_increment된 order_id
+                } else {
+                    throw new SQLException("주문 ID 생성 실패");
+                }
+            }
+
+            // 3. OrderDetails 테이블에 데이터 삽입
+            for (OrderDetail detail : order.getOrderDetails()) {
+                setParameters(detailsStmt, orderId, detail.getProductName(), detail.getProductId(), detail.getQuantity(), detail.getPrice());
+                detailsStmt.addBatch(); // 배치에 추가
+            }
+            detailsStmt.executeBatch(); // 배치 실행
+
+            System.out.println("주문 정보와 상세 정보가 성공적으로 저장되었습니다.");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("주문 정보를 저장하는 중 오류 발생", e);
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("예기치 못한 오류 발생", e);
+        }
+    }
+
+    // 고객 주문 목록 가져오기
+    public void loadOrderList(int customerId, DefaultTableModel model) {
+        String query = "SELECT order_id, order_date, total_price FROM Orders WHERE customer_id = ?";
+        try (ResultSet rs = executeQuery(query, customerId)) { // BaseDAO 메서드 사용
+            while (rs.next()) {
+                int orderId = rs.getInt("order_id");
+                Timestamp orderDate = rs.getTimestamp("order_date");
+                double totalPrice = rs.getDouble("total_price");
+
+                model.addRow(new Object[]{orderId, orderDate, totalPrice});
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // 주문 상세 목록 가져오기
+    public void loadOrderDetailList(int orderId, DefaultTableModel model) {
+        String query = "SELECT product_id, product_name, quantity, price FROM OrderDetails WHERE order_id = ?";
+        try (ResultSet rs = executeQuery(query, orderId)) { // BaseDAO 메서드 사용
+            while (rs.next()) {
+                int productId = rs.getInt("product_id");
+                String productName = rs.getString("product_name");
+                int quantity = rs.getInt("quantity");
+                double price = rs.getDouble("price");
+
+                model.addRow(new Object[]{productId, productName, quantity, price});
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+class BoardDAO extends BaseDAO {
+
     // 게시글 추가
     public boolean addPost(String title, String content, String author) {
         String query = "INSERT INTO Board (title, content, author) VALUES (?, ?, ?)";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, title);
-            pstmt.setString(2, content);
-            pstmt.setString(3, author);
-            return pstmt.executeUpdate() > 0;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
+        return executeUpdate(query, title, content, author); // BaseDAO 메서드 사용
     }
 
     // 게시글 목록 가져오기
     public List<String> getPosts() {
         List<String> posts = new ArrayList<>();
         String query = "SELECT * FROM Board ORDER BY created_at DESC";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query);
-             ResultSet rs = pstmt.executeQuery()) {
+
+        try (ResultSet rs = executeQuery(query)) { // BaseDAO 메서드 사용
             while (rs.next()) {
                 String post = String.format("Title: %s\nAuthor: %s\nContent: %s\nDate: %s\n",
                         rs.getString("title"),
@@ -39,12 +202,15 @@ class BoardDAO {
                         rs.getTimestamp("created_at"));
                 posts.add(post);
             }
-        } catch (Exception e) {
+        } catch (SQLException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
         return posts;
     }
 }
+
 
 class AdminInventoryDatabase {
     public DefaultTableModel getInventoryTableModel() {
@@ -248,180 +414,9 @@ class Order {
 }
 
 
-class OrderDAO {
-
-    // 주문 정보 저장 메서드
-    public void addOrder(Order order) {
-        String orderQuery = "INSERT INTO Orders (customer_id, order_date, total_price, status) VALUES (?, NOW(), ?, ?)";
-        String detailsQuery = "INSERT INTO OrderDetails (order_id, product_name ,product_id, quantity, price) VALUES (?, ?, ?, ?, ?)";
-
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement orderStmt = conn.prepareStatement(orderQuery, PreparedStatement.RETURN_GENERATED_KEYS);
-             PreparedStatement detailsStmt = conn.prepareStatement(detailsQuery)) {
-
-            // 1. Orders 테이블에 데이터 삽입
-            orderStmt.setInt(1, order.getCustomerId());
-            orderStmt.setDouble(2, order.getTotalPrice());
-            orderStmt.setString(3, "Pending");
-            orderStmt.executeUpdate();
-
-            // 2. 생성된 order_id 가져오기
-            int orderId = 0;
-            try (ResultSet generatedKeys = orderStmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    orderId = generatedKeys.getInt(1); // auto_increment된 order_id
-                } else {
-                    throw new SQLException("주문 ID 생성 실패: No ID obtained.");
-                }
-            }
-
-            // 3. OrderDetails 테이블에 데이터 삽입
-            for (OrderDetail detail : order.getOrderDetails()) {
-                detailsStmt.setInt(1, orderId);
-                detailsStmt.setString(2, detail.getProductName());
-                detailsStmt.setInt(3, detail.getProductId());
-                detailsStmt.setInt(4, detail.getQuantity());
-                detailsStmt.setDouble(5, detail.getPrice());
-                detailsStmt.addBatch(); // 배치에 추가
-            }
-            detailsStmt.executeBatch(); // 배치 실행
-
-            System.out.println("주문 정보와 상세 정보가 성공적으로 저장되었습니다.");
-
-        } catch (SQLException e) {
-            throw new RuntimeException("주문 정보를 저장하는 중 오류 발생: " + e.getMessage(), e);
-        } catch (Exception e) {
-            throw new RuntimeException("예기치 못한 오류 발생: " + e.getMessage(), e);
-        }
-    }
-
-    public void loadOrderList(int customerId, DefaultTableModel model) {
-        String query = "SELECT order_id, order_date, total_price FROM Orders WHERE customer_id = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-
-            pstmt.setInt(1, customerId);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                int orderId = rs.getInt("order_id");
-                Timestamp orderDate = rs.getTimestamp("order_date");
-                double totalPrice = rs.getDouble("total_price");
-
-                model.addRow(new Object[]{orderId, orderDate, totalPrice});
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public void loadOrderDetailList(int orderId, DefaultTableModel model) {
-        String query = "SELECT product_id, product_name, quantity, price FROM OrderDetails WHERE order_id = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-
-            pstmt.setInt(1, orderId);
-            ResultSet rs = pstmt.executeQuery();
-
-            while (rs.next()) {
-                int productId = rs.getInt("product_id");
-                String productName = rs.getString("product_name");
-                int quantity = rs.getInt("quantity");
-                double price = rs.getDouble("price");
-
-                model.addRow(new Object[]{productId, productName, quantity, price});
-            }
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-}
 
 
 
-class UserDAO {
-    public boolean registerUser(String name, String email, String password, String role) {
-        String query = "INSERT INTO User (name, email, password, role) VALUES (?, ?, ?, ?)";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, name);
-            pstmt.setString(2, email);
-            pstmt.setString(3, password);
-            pstmt.setString(4, role);
-            return pstmt.executeUpdate() > 0;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        }
-    }
-    public boolean login(String email, String password) {
-        String query = "SELECT password FROM User WHERE email = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, email);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) { // 이메일이 존재하는 경우
-                String storedPassword = rs.getString("password"); // DB에 저장된 비밀번호
-                if (storedPassword.equals(password)) { // 입력한 비밀번호와 비교
-                    return true; // 로그인 성공
-                } else {
-                    System.out.println("비밀번호가 일치하지 않습니다.");
-                    return false; // 비밀번호 불일치
-                }
-            } else {
-                System.out.println("해당 이메일이 존재하지 않습니다.");
-                return false; // 이메일 없음
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false; // 예외 발생
-        }
-    }
-
-    public boolean role_check(String email) {
-        String query = "SELECT role FROM User WHERE email = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-            pstmt.setString(1, email);
-            ResultSet rs = pstmt.executeQuery();
-
-            if (rs.next()) { // 이메일이 존재하는 경우
-                String storedRole = rs.getString("role"); // DB에 저장된 역할
-                if (storedRole.equals("admin")) {
-                    return true; // 해당 email은 관리자
-                } else {
-                    return false; // 해당 email은 고객
-                }
-            } else {
-                System.out.println("해당 이메일이 존재하지 않습니다.");
-                return false; // 이메일 없음
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false; // 예외 발생
-        }
-    }
-
-    // 고객 ID 조회
-    public int getCustomerID(String email) {
-        String query = "SELECT id FROM User WHERE email = ?";
-        try (Connection conn = DatabaseUtil.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(query)) {
-
-            pstmt.setString(1, email);
-            ResultSet rs = pstmt.executeQuery();
-
-            return rs.next() ? rs.getInt("id") : 0;//userid 반환
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return 0;
-        }
-    }
-}
 
 class Item{
     public void loadInventoryData(DefaultTableModel tableModel) {
@@ -588,7 +583,7 @@ public class Main {
 
                 if(userDAO.login(EmailField_Login.getText(), PasswordField_Login.getText())){
                     JOptionPane.showMessageDialog(null, "Login Success", "Message", JOptionPane.INFORMATION_MESSAGE);
-                    if(userDAO.role_check(EmailField_Login.getText())){
+                    if(userDAO.roleCheck(EmailField_Login.getText())){
                         AdminInventoryDatabase InventoryDatabase = new AdminInventoryDatabase();
 
                         admintableModel = InventoryDatabase.getInventoryTableModel();
