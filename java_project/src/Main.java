@@ -9,12 +9,12 @@ import java.util.*;
 import java.util.List;
 
 abstract class BaseDAO {
-    
+
     // 공통적으로 데이터베이스 연결 가져오기
     protected Connection getConnection() throws Exception {
         return DatabaseUtil.getConnection(); // 공통 유틸 클래스 사용
     }
-    
+
     // PreparedStatement를 사용한 데이터 수정 작업 (INSERT, UPDATE, DELETE)
     protected boolean executeUpdate(String query, Object... params) {
         try (Connection conn = getConnection();
@@ -30,7 +30,7 @@ abstract class BaseDAO {
             throw new RuntimeException(e);
         }
     }
-    
+
     // PreparedStatement를 사용한 데이터 조회 작업 (SELECT)
     protected ResultSet executeQuery(String query, Object... params) throws Exception {
         Connection conn = getConnection();
@@ -38,7 +38,7 @@ abstract class BaseDAO {
         setParameters(pstmt, params); // 파라미터 설정
         return pstmt.executeQuery(); // 호출한 DAO에서 ResultSet 처리
     }
-    
+
     // PreparedStatement 파라미터 설정 메서드
     public void setParameters(PreparedStatement pstmt, Object... params) throws SQLException {
         for (int i = 0; i < params.length; i++) {
@@ -46,6 +46,7 @@ abstract class BaseDAO {
         }
     }
 }
+
 
 class UserDAO extends BaseDAO {
 
@@ -209,6 +210,8 @@ class BoardDAO extends BaseDAO {
         }
         return posts;
     }
+
+
 }
 
 
@@ -522,6 +525,8 @@ public class Main {
     private static DefaultTableModel orderdetailTableModel;
     private static DefaultTableModel admintableModel;
     private static JTable inventoryTable;
+    private static JTextField newTitle;
+    private static JTextArea newContent;
 
     public static void main(String[] args) {
 
@@ -546,7 +551,8 @@ public class Main {
         orderdetailPanel.setLayout(null);
         JPanel AdminPanel = new JPanel();
         AdminPanel.setLayout(null);
-        JPanel BoardPanel = new JPanel(new BorderLayout()); // 게시판 패널
+        JPanel BoardPanel = new JPanel(); // 게시판 패널
+        BoardPanel.setLayout(null);
 
         // 각 패널을 cardPanel에 추가
         cardPanel.add(LoginPanel, "LoginPanel");
@@ -562,17 +568,17 @@ public class Main {
 
         // 로그인 패널 구성
         JLabel Email_Login = new JLabel("Email");
-        Email_Login.setBounds(300, 100, 100, 20);
+        Email_Login.setBounds(300, 100, 100, 30);
         JLabel Password_Login = new JLabel("Password");
-        Password_Login.setBounds(300, 150, 100, 20);
+        Password_Login.setBounds(300, 150, 100, 30);
 
         JTextField EmailField_Login = new JTextField();
-        EmailField_Login.setBounds(480, 100, 200, 20);
+        EmailField_Login.setBounds(480, 100, 200, 30);
         JPasswordField PasswordField_Login = new JPasswordField();
-        PasswordField_Login.setBounds(480, 150, 200, 20);
+        PasswordField_Login.setBounds(480, 150, 200, 30);
 
         JButton Login_Button = new JButton("Login");
-        Login_Button.setBounds(350, 300, 100, 20);
+        Login_Button.setBounds(350, 300, 100, 40);
         Login_Button.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -605,7 +611,7 @@ public class Main {
         });
 
         JButton Register_Button_Login = new JButton("Register");
-        Register_Button_Login.setBounds(550, 300, 100, 20);
+        Register_Button_Login.setBounds(550, 300, 100, 40);
         Register_Button_Login.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -625,21 +631,21 @@ public class Main {
 
         // 회원가입 패널 구성
         JLabel Name_Register = new JLabel("Name");
-        Name_Register.setBounds(100, 100, 100, 20);
+        Name_Register.setBounds(100, 100, 100, 30);
         JLabel Email_Register = new JLabel("Email");
-        Email_Register.setBounds(100, 150, 100, 20);
+        Email_Register.setBounds(100, 150, 100, 30);
         JLabel Password_Register = new JLabel("Password");
-        Password_Register.setBounds(100, 200, 100, 20);
+        Password_Register.setBounds(100, 200, 100, 30);
 
         JTextField NameField_Register = new JTextField();
-        NameField_Register.setBounds(180, 100, 200, 20);
+        NameField_Register.setBounds(180, 100, 200, 30);
         JTextField EmailField_Register = new JTextField();
-        EmailField_Register.setBounds(180, 150, 200, 20);
+        EmailField_Register.setBounds(180, 150, 200, 30);
         JPasswordField PasswordField_Register = new JPasswordField();
-        PasswordField_Register.setBounds(180, 200, 200, 20);
+        PasswordField_Register.setBounds(180, 200, 200, 30);
 
         JButton Register_Button = new JButton("Register");
-        Register_Button.setBounds(100, 300, 100, 20);
+        Register_Button.setBounds(100, 300, 100, 30);
         Register_Button.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -666,7 +672,8 @@ public class Main {
         JTextArea boardTextArea = new JTextArea();
         boardTextArea.setEditable(false);
         JScrollPane boardscrollPane = new JScrollPane(boardTextArea);
-        BoardPanel.add(boardscrollPane, BorderLayout.CENTER);
+        boardscrollPane.setBounds(150,100,700,400);
+        BoardPanel.add(boardscrollPane);
 
         JButton refreshButton = new JButton("Refresh");
         refreshButton.addActionListener(e -> {
@@ -677,13 +684,22 @@ public class Main {
                 boardTextArea.append(post + "\n\n");
             }
         });
-        BoardPanel.add(refreshButton, BorderLayout.SOUTH);
+        refreshButton.setBounds(650,30,100,40);
+        BoardPanel.add(refreshButton);
+
+        JButton boardBackButton = new JButton("Back");
+        boardBackButton.addActionListener(e -> {
+            cardLayout.show(cardPanel, "BuyPanel");
+        });
+        boardBackButton.setBounds(750, 30, 100, 40);
+        BoardPanel.add(boardBackButton);
 
         // 게시판 버튼
         JButton BoardButton = new JButton("Board");
-        BoardButton.setBounds(250, 30, 100, 20);
+        BoardButton.setBounds(250, 30, 100, 40);
         BoardButton.addActionListener(e -> cardLayout.show(cardPanel, "BoardPanel"));
         BuyPanel.add(BoardButton);
+
 
         //관리자 패널 구성
         AdminInventoryDatabase inventoryDatabase = new AdminInventoryDatabase();
@@ -691,16 +707,17 @@ public class Main {
 
         inventoryTable = new JTable(admintableModel);
         JScrollPane adminscrollPane = new JScrollPane(inventoryTable);
-        adminscrollPane.setBounds(300,100,600,300);
+        adminscrollPane.setBounds(330,100,600,180);
         AdminPanel.add(adminscrollPane);
 
         JLabel AdminLabel = new JLabel("Admin Page");
-        AdminLabel.setBounds(100, 50, 200, 30);
+        AdminLabel.setBounds(30, 30, 200, 50);
+        AdminLabel.setFont(new Font("Times New Roman", Font.PLAIN | Font.BOLD, 30));
         AdminPanel.add(AdminLabel);
 
         // 관리자 버튼
         JButton AddProductButton = new JButton("Add Amount");
-        AddProductButton.setBounds(100, 100, 150, 30);
+        AddProductButton.setBounds(30, 100, 130, 40);
         AddProductButton.addActionListener(new ActionListener() {
 
             @Override
@@ -732,7 +749,7 @@ public class Main {
         AdminPanel.add(AddProductButton);
 
         JButton RemoveProductButton = new JButton("Reduce Amount");
-        RemoveProductButton.setBounds(100, 150, 150, 30);
+        RemoveProductButton.setBounds(170, 100, 130, 40);
         RemoveProductButton.addActionListener(new ActionListener() {
 
             @Override
@@ -765,7 +782,7 @@ public class Main {
         AdminPanel.add(RemoveProductButton);
 
         JButton newProductButton = new JButton("New Product");
-        newProductButton.setBounds(100, 200, 150, 30);
+        newProductButton.setBounds(30, 170, 130, 40);
         newProductButton.addActionListener(new ActionListener() {
 
             @Override
@@ -801,7 +818,7 @@ public class Main {
         AdminPanel.add(newProductButton);
 
         JButton delProductButton = new JButton("Delete Product");
-        delProductButton.setBounds(100, 250, 150, 30);
+        delProductButton.setBounds(170, 170, 130, 40);
         delProductButton.addActionListener(new ActionListener() {
 
             @Override
@@ -830,7 +847,7 @@ public class Main {
 
 
         JButton RefreshButton = new JButton("Refresh");
-        RefreshButton.setBounds(100, 300, 150, 30);
+        RefreshButton.setBounds(30, 240, 130, 40);
         RefreshButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -842,7 +859,7 @@ public class Main {
         AdminPanel.add(RefreshButton);
 
         JButton LogoutButton = new JButton("Logout");
-        LogoutButton.setBounds(100, 350, 150, 30);
+        LogoutButton.setBounds(170, 240, 130, 40);
         LogoutButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -852,6 +869,44 @@ public class Main {
         });
         AdminPanel.add(LogoutButton);
 
+        JButton addBoardButton = new JButton("Add Board");
+        addBoardButton.setBounds(30, 350, 130, 40);
+        addBoardButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                BoardDAO boardDAO = new BoardDAO();
+                boardDAO.addPost(newTitle.getText(), newContent.getText(), "Admin");
+                newTitle.setText("");
+                newContent.setText("");
+                JOptionPane.showMessageDialog(null, "Board added successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            }
+        });
+
+
+        JLabel newTitleLabel = new JLabel("New Title");
+        newTitleLabel.setBounds(170, 350, 130, 40);
+        newTitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        JLabel newContentLabel = new JLabel("New Content");
+        newContentLabel.setBounds(170, 400, 130, 40);
+        newContentLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+
+        newTitle = new JTextField();
+        newTitle.setBounds(330, 350, 600, 40);
+        newContent = new JTextArea();
+        JScrollPane contentScrollPane = new JScrollPane(newContent);
+        contentScrollPane.setBounds(330, 400, 600, 80);
+
+        newTitle.setFont(new Font("", Font.PLAIN, 15));
+        newContent.setFont(new Font("", Font.PLAIN, 15));
+        newTitleLabel.setFont(new Font("", Font.PLAIN, 15));
+        newContentLabel.setFont(new Font("", Font.PLAIN, 15));
+
+        AdminPanel.add(newTitleLabel);
+        AdminPanel.add(newContentLabel);
+        AdminPanel.add(newTitle);
+        AdminPanel.add(contentScrollPane);
+        AdminPanel.add(addBoardButton);
 
 
 
@@ -927,7 +982,7 @@ public class Main {
                 cardLayout.show(cardPanel, "CartPanel");
             }
         });
-        goCart.setBounds(750, 30, 100, 20);
+        goCart.setBounds(750, 30, 100, 40);
         BuyPanel.add(goCart);
 
         JButton logout = new JButton("Logout");
@@ -945,11 +1000,11 @@ public class Main {
                 }else ;
             }
         });
-        logout.setBounds(150, 30, 100, 20);
+        logout.setBounds(150, 30, 100, 40);
         BuyPanel.add(logout);
 
         userinfo = new JLabel();
-        userinfo.setBounds(150 ,70 ,100, 20);
+        userinfo.setBounds(150 ,70 ,100, 40);
         BuyPanel.add(userinfo);
 
         JButton orderlist = new JButton("Orderlist");
@@ -962,7 +1017,7 @@ public class Main {
                 orderDAO.loadOrderList(customer_id,orderTableModel);
             }
         });
-        orderlist.setBounds(650, 30, 100, 20);
+        orderlist.setBounds(650, 30, 100, 40);
         BuyPanel.add(orderlist);
 
         //주문목록 패널
@@ -996,7 +1051,7 @@ public class Main {
                 cardLayout.show(cardPanel, "BuyPanel");
             }
         });
-        goBuy.setBounds(750, 30, 100, 20);
+        goBuy.setBounds(750, 30, 100, 40);
         orderPanel.add(goBuy);
 
         //상세 주문 패널 구성
@@ -1019,7 +1074,7 @@ public class Main {
                 cardLayout.show(cardPanel, "OrderPanel");
             }
         });
-        goOrder.setBounds(750, 30, 100, 20);
+        goOrder.setBounds(750, 30, 100, 40);
         orderdetailPanel.add(goOrder);
 
         //카트 패널 구성
@@ -1083,7 +1138,7 @@ public class Main {
             }
         });
 
-        payment.setBounds(750, 430, 100, 20);
+        payment.setBounds(750, 430, 100, 40);
         CartPanel.add(payment);
 
         JButton back = new JButton("Back");
@@ -1093,7 +1148,7 @@ public class Main {
                 cardLayout.show(cardPanel, "BuyPanel");
             }
         });
-        back.setBounds(750, 30, 100, 20);
+        back.setBounds(750, 30, 100, 40);
         CartPanel.add(back);
 
         totalPrice2 = new JLabel("Total Price : "+"0");
