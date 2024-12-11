@@ -10,18 +10,18 @@ import java.util.List;
 
 abstract class BaseDAO {
 
-    // 공통적으로 데이터베이스 연결 가져오기
+    // Retrieving a common database connection
     protected Connection getConnection() throws Exception {
-        return DatabaseUtil.getConnection(); // 공통 유틸 클래스 사용
+        return DatabaseUtil.getConnection();
     }
 
-    // PreparedStatement를 사용한 데이터 수정 작업 (INSERT, UPDATE, DELETE)
+    // Performing data modification operations (INSERT, UPDATE, DELETE) using PreparedStatement
     protected boolean executeUpdate(String query, Object... params) {
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(query)) {
 
-            setParameters(pstmt, params); // 파라미터 설정
-            return pstmt.executeUpdate() > 0; // 수정된 행이 1개 이상일 때 true
+            setParameters(pstmt, params); Setting parameters
+            return pstmt.executeUpdate() > 0;
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -31,15 +31,15 @@ abstract class BaseDAO {
         }
     }
 
-    // PreparedStatement를 사용한 데이터 조회 작업 (SELECT)
+    // Performing data retrieval operations (SELECT) using PreparedStatement
     protected ResultSet executeQuery(String query, Object... params) throws Exception {
         Connection conn = getConnection();
         PreparedStatement pstmt = conn.prepareStatement(query);
-        setParameters(pstmt, params); // 파라미터 설정
-        return pstmt.executeQuery(); // 호출한 DAO에서 ResultSet 처리
+        setParameters(pstmt, params);
+        return pstmt.executeQuery();
     }
 
-    // PreparedStatement 파라미터 설정 메서드
+    // Methods for setting parameters in PreparedStatement
     public void setParameters(PreparedStatement pstmt, Object... params) throws SQLException {
         for (int i = 0; i < params.length; i++) {
             pstmt.setObject(i + 1, params[i]);
@@ -50,16 +50,16 @@ abstract class BaseDAO {
 
 class UserDAO extends BaseDAO {
 
-    // 회원 등록
+    // register
     public boolean registerUser(String name, String email, String password, String role) {
         String query = "INSERT INTO User (name, email, password, role) VALUES (?, ?, ?, ?)";
-        return executeUpdate(query, name, email, password, role); // BaseDAO 메서드 사용
+        return executeUpdate(query, name, email, password, role); // use BaseDAO methods
     }
 
-    // 로그인
+    // login
     public boolean login(String email, String password) {
         String query = "SELECT password FROM User WHERE email = ?";
-        try (ResultSet rs = executeQuery(query, email)) { // BaseDAO 메서드 사용
+        try (ResultSet rs = executeQuery(query, email)) { // use BaseDAO methods
             if (rs.next()) {
                 return rs.getString("password").equals(password);
             }
@@ -71,10 +71,10 @@ class UserDAO extends BaseDAO {
         return false;
     }
 
-    // 역할 확인
+    // role check
     public boolean roleCheck(String email) {
         String query = "SELECT role FROM User WHERE email = ?";
-        try (ResultSet rs = executeQuery(query, email)) { // BaseDAO 메서드 사용
+        try (ResultSet rs = executeQuery(query, email)) { // use BaseDAO methods
             if (rs.next()) {
                 return "admin".equals(rs.getString("role"));
             }
@@ -86,10 +86,10 @@ class UserDAO extends BaseDAO {
         return false;
     }
 
-    // 고객 ID 조회
+    // getCustomerID
     public int getCustomerID(String email) {
         String query = "SELECT id FROM User WHERE email = ?";
-        try (ResultSet rs = executeQuery(query, email)) { // BaseDAO 메서드 사용
+        try (ResultSet rs = executeQuery(query, email)) { // use BaseDAO methods
             return rs.next() ? rs.getInt("id") : 0;
         } catch (SQLException e) {
             e.printStackTrace();
@@ -111,13 +111,11 @@ class OrderDAO extends BaseDAO {
              PreparedStatement orderStmt = conn.prepareStatement(orderQuery, PreparedStatement.RETURN_GENERATED_KEYS);
              PreparedStatement detailsStmt = conn.prepareStatement(detailsQuery)) {
 
-            // 1. Orders 테이블에 데이터 삽입
-            setParameters(orderStmt, order.getCustomerId(), order.getTotalPrice(), "Pending");
+            setParameters(orderStmt, order.getCustomerId(), order.getTotalPrice(), "Pending"); // 1. Inserting data into the Orders table
             orderStmt.executeUpdate();
 
-            // 2. 생성된 order_id 가져오기
             int orderId = 0;
-            try (ResultSet generatedKeys = orderStmt.getGeneratedKeys()) {
+            try (ResultSet generatedKeys = orderStmt.getGeneratedKeys()) {// 2. Retrieving the generated order_id
                 if (generatedKeys.next()) {
                     orderId = generatedKeys.getInt(1); // auto_increment된 order_id
                 } else {
@@ -125,15 +123,12 @@ class OrderDAO extends BaseDAO {
                 }
             }
 
-            // 3. OrderDetails 테이블에 데이터 삽입
-            for (OrderDetail detail : order.getOrderDetails()) {
+            for (OrderDetail detail : order.getOrderDetails()) {// 3. Inserting data into the OrderDetails table
                 setParameters(detailsStmt, orderId, detail.getProductName(), detail.getProductId(), detail.getQuantity(), detail.getPrice());
-                detailsStmt.addBatch(); // 배치에 추가
+                detailsStmt.addBatch();
             }
-            detailsStmt.executeBatch(); // 배치 실행
-
+            detailsStmt.executeBatch();
             System.out.println("주문 정보와 상세 정보가 성공적으로 저장되었습니다.");
-
         } catch (SQLException e) {
             e.printStackTrace();
             throw new RuntimeException("주문 정보를 저장하는 중 오류 발생", e);
